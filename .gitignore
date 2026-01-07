@@ -3,3 +3,4 @@ data/
 db_data/
 logs/*.log
 volumes/
+.env
