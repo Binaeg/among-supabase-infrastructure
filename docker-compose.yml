@@ -541,7 +541,7 @@ services:
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASSWORD=${MQTT_PASSWORD}
       - SUPABASE_URL=${SUPABASE_PUBLIC_URL}
-      - SUPABASE_KEY=${SERVICE_ROLE_KEY}
+      - SUPABASE_KEY=${ANON_KEY}
       - LOG_LEVEL=debug
     restart: unless-stopped
 
