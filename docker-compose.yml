@@ -542,7 +542,7 @@ services:
       - MQTT_PASSWORD=${MQTT_PASSWORD}
       - SUPABASE_URL=${SUPABASE_PUBLIC_URL}
       - SUPABASE_KEY=${ANON_KEY}
-      - LOG_LEVEL=debug
+      - LOG_LEVEL=${BRIDGE_LOG_LEVEL}
     restart: unless-stopped
 
 volumes:
