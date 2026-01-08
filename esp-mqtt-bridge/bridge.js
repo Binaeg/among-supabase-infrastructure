@@ -19,7 +19,7 @@ log('info', 'Supabase client object created');
 // Sofortiger Verbindungstest beim Start
 async function testConnection() {
   log('debug', `Testing connection to: ${process.env.SUPABASE_URL}`);
-  const { data, error } = await supabase.from('devices').select('count').limit(1);
+  const { data, error } = await supabase.from('Devices').select('count').limit(1);
   if (error) {
     log('error', 'CRITICAL: Could not reach Supabase!', error.message);
     log('error', 'Check if SUPABASE_URL is correct and Kong container is running.');
@@ -55,7 +55,7 @@ client.on('message', async (topic, msg) => {
       const espId = topic.split('/')[1];
       log('debug', `Supabase -> Upserting status for ${espId}`);
       
-      const { error } = await supabase.from('devices')
+      const { error } = await supabase.from('Devices')
         .upsert({ id: espId, online: payload === '1', last_seen: new Date() });
       
       if (error) throw error;
