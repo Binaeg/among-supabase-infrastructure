@@ -531,5 +531,18 @@ services:
         "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
       ]
 
+  mqtt-bridge:
+    build: ./esp-mqtt-bridge
+    container_name: esp-mqtt-bridge
+    depends_on:
+      - db
+    environment:
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+      - SUPABASE_KEY=${SERVICE_ROLE_KEY}
+    restart: unless-stopped
+
 volumes:
   db-config:
