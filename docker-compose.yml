@@ -542,6 +542,7 @@ services:
       - MQTT_PASSWORD=${MQTT_PASSWORD}
       - SUPABASE_URL=${SUPABASE_PUBLIC_URL}
       - SUPABASE_KEY=${SERVICE_ROLE_KEY}
+      - LOG_LEVEL=debug
     restart: unless-stopped
 
 volumes:
