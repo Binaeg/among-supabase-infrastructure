@@ -68,13 +68,17 @@ client.on("message", async (topic, msg) => {
    * Updates the online status of a device in the Supabase Devices table.
    * @param {string} espId - The unique identifier of the ESP device
    * @param {boolean} status - The online status (true = online, false = offline)
+   * @param {string} ip - The IP address of the device (optional)
    * @throws {Error} Throws if the database operation fails
    * @returns {Promise<void>}
    */
-  async function updateStatus(espId, status) {
+  async function updateStatus(espId, status, ip = null) {
     log("debug", `Supabase -> Upserting status for ${espId}`);
 
-    const { error } = await supabase.from("Devices").upsert({ id: espId, online: status, last_seen: new Date() });
+    const updateData = { id: espId, online: status, last_seen: new Date() };
+    if (ip) updateData.ip = ip;
+
+    const { error } = await supabase.from("Devices").upsert(updateData);
 
     if (error) throw error;
     log("info", `Device ${espId} status updated: ${status ? "online" : "offline"}`);
