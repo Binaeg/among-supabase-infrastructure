@@ -33,9 +33,9 @@ const client = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
 
 client.on("connect", () => {
   log("info", "Connected to HiveMQ Cloud");
-  client.subscribe(["status/+", "tasks/update"], (err) => {
+  client.subscribe(["status/+", "tasks/+"], (err) => {
     if (err) log("error", "Subscription failed", err);
-    else log("info", "Subscribed to topics: status/+ and tasks/update");
+    else log("info", "Subscribed to topics: status/+ and tasks/+");
   });
 });
 
@@ -47,14 +47,23 @@ client.on("message", async (topic, msg) => {
 
   try {
     if (topic.startsWith("status/")) {
-      const espId = topic.split("/")[1];
-      const status = payload === "1";
-      await updateStatus(espId, status);
+      const deviceId = topic.split("/")[1];
+      let status = 0;
+      let ipAdress = null;
+      if (payload.length > 1) {
+        const {s: statusValue, ip } = JSON.parse(payload);
+        status = statusValue;
+        ipAdress = ip;
+      } else {
+        status = payload === "1";
+      }
+      await updateStatus(deviceId, status, ipAdress);
     }
 
-    if (topic === "tasks/update") {
-      const { c: characterRfid, s: supervisorRfid } = JSON.parse(payload);
-      await updateTask(characterRfid, supervisorRfid);
+    if (topic.startsWith("tasks/")) {
+      const deviceId = topic.split("/")[1];
+      const { c: characterRfid } = JSON.parse(payload);
+      await updateTask(characterRfid, deviceId);
     }
   } catch (err) {
     log("error", `PROCESS ERROR: ${err.message}`);
@@ -66,48 +75,44 @@ client.on("message", async (topic, msg) => {
 
   /**
    * Updates the online status of a device in the Supabase Devices table.
-   * @param {string} espId - The unique identifier of the ESP device
+   * @param {string} deviceId - The unique identifier of the device
    * @param {boolean} status - The online status (true = online, false = offline)
    * @param {string} ip - The IP address of the device (optional)
    * @throws {Error} Throws if the database operation fails
    * @returns {Promise<void>}
    */
-  async function updateStatus(espId, status, ip = null) {
-    log("debug", `Supabase -> Upserting status for ${espId}`);
+  async function updateStatus(deviceId, status, ip = null) {
+    log("debug", `Supabase -> Upserting status for ${deviceId}`);
 
-    const updateData = { id: espId, online: status, last_seen: new Date() };
+    const updateData = { id: deviceId, online: status, last_seen: new Date() };
     if (ip) updateData.ip = ip;
 
     const { error } = await supabase.from("Devices").upsert(updateData);
 
     if (error) throw error;
-    log("info", `Device ${espId} status updated: ${status ? "online" : "offline"}`);
+    log("info", `Device ${deviceId} status updated: ${status ? "online" : "offline"}`);
   }
 
   /**
    * Marks a task as solved in the Supabase Task table based on character and supervisor RFIDs.
    * @param {string} characterRfid - The RFID of the character
-   * @param {string} supervisorRfid - The RFID of the supervisor
+   * @param {string} deviceId - The unique identifier of the device
    * @throws {Error} Throws if any database operation fails
    * @returns {Promise<void>}
    */
-  async function updateTask(characterRfid, supervisorRfid) {
-    log("info", `Task Request -> Char: ${characterRfid}, Super: ${supervisorRfid}`);
+  async function updateTask(characterRfid, deviceId) {
+    log("info", `Task Request -> Char: ${characterRfid}`);
 
-    const { data: sData, error: sErr } = await supabase.from("Supervisor").select("id").eq("rfid", supervisorRfid).single();
-    if (sErr || !sData) throw new Error(`Supervisor lookup failed for RFID ${supervisorRfid}`);
+    const { data: gameData, error: gErr } = await supabase.from("Game").select("id, gametype").eq("is_active", true).single();
+    if (gErr || !gameData) throw new Error("No active game found");
 
-    const { data: gData, error: gErr } = await supabase.from("Game").select("id").eq("is_active", true).single();
-    if (gErr || !gData) throw new Error("No active game found");
+    const { data: characterData, error: cErr } = await supabase.from("Character").select("id").eq("rfid", characterRfid).single();
+    if (cErr || !characterData) throw new Error(`Character lookup failed for RFID ${characterRfid}`);
 
-    const { data: pData, error: pErr } = await supabase.from("Post").select("id").eq("supervisor", sData.id);
-    if (pErr) throw pErr;
-    const postIds = pData.map((p) => p.id);
+    const { data: postData, error: pErr } = await supabase.from("Post").select("id").eq("gametype", gameData.gametype).eq("device", deviceId).single();
+    if (pErr || !postData) throw new Error(`Post lookup failed for device ${deviceId} in gametype ${gameData.gametype}`);
 
-    const { data: cData, error: cErr } = await supabase.from("Character").select("id").eq("rfid", characterRfid).single();
-    if (cErr || !cData) throw new Error(`Character lookup failed for RFID ${characterRfid}`);
-
-    const { error: uErr } = await supabase.from("Task").update({ solved: true }).in("post", postIds).match({ game: gData.id, character: cData.id });
+    const { error: uErr } = await supabase.from("Task").update({ solved: true }).in("post", postIds).match({ game: gameData.id, character: characterData.id, post: postData.id });
 
     if (uErr) throw uErr;
     log("info", `SUCCESS: Task solved for Char ${characterRfid}`);
