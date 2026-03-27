@@ -63,6 +63,7 @@ client.on("message", async (topic, msg) => {
     if (topic.startsWith("tasks/")) {
       const deviceId = topic.split("/")[1];
       const { c: characterRfid } = JSON.parse(payload);
+      characterRfid = characterRfid.replaceAll(":", "").replaceAll("-", ""); // Remove spaces if any
       await updateTask(characterRfid, deviceId);
     }
   } catch (err) {
