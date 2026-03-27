@@ -109,17 +109,29 @@ client.on("message", async (topic, msg) => {
     log("info", `Task Request -> Char: ${characterRfid}`);
 
     const { data: gameData, error: gErr } = await supabase.from("Game").select("id, gametype").eq("is_active", true).single();
+
     if (gErr || !gameData) throw new Error("No active game found");
 
     const { data: characterData, error: cErr } = await supabase.from("Character").select("id").eq("rfid", characterRfid).single();
-    if (cErr || !characterData) throw new Error(`Character lookup failed for RFID ${characterRfid}`);
+
+    if (cErr || !characterData) {
+      throw new Error(`Character lookup failed for RFID ${characterRfid}`);
+    }
 
     const { data: postData, error: pErr } = await supabase.from("Post").select("id").eq("gametype", gameData.gametype).eq("device", deviceId).single();
-    if (pErr || !postData) throw new Error(`Post lookup failed for device ${deviceId} in gametype ${gameData.gametype}`);
 
-    const { error: uErr } = await supabase.from("Task").update({ solved: true }).in("post", postData.id).match({ game: gameData.id, character: characterData.id, post: postData.id });
+    if (pErr || !postData) {
+      throw new Error(`Post lookup failed for device ${deviceId} in gametype ${gameData.gametype}`);
+    }
+
+    const { error: uErr } = await supabase.from("Task").update({ solved: true }).match({
+      game: gameData.id,
+      character: characterData.id,
+      post: postData.id,
+    });
 
     if (uErr) throw uErr;
+
     log("info", `SUCCESS: Task solved for Char ${characterRfid}`);
   }
 });
