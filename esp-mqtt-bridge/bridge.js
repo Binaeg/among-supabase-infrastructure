@@ -51,7 +51,7 @@ client.on("message", async (topic, msg) => {
       let status = 0;
       let ipAdress = null;
       if (payload.length > 1) {
-        const {s: statusValue, ip } = JSON.parse(payload);
+        const { s: statusValue, ip } = JSON.parse(payload);
         status = statusValue;
         ipAdress = ip;
       } else {
@@ -62,8 +62,12 @@ client.on("message", async (topic, msg) => {
 
     if (topic.startsWith("tasks/")) {
       const deviceId = topic.split("/")[1];
-      const { c: characterRfid } = JSON.parse(payload);
-      characterRfid = characterRfid.replaceAll(":", "").replaceAll("-", ""); // Remove spaces if any
+      let { c: characterRfid } = JSON.parse(payload);
+
+      characterRfid = characterRfid
+        .replace(/[:-]/g, "") // entfernt alle ":" und "-"
+        .substring(0, 8); // auf 8 Zeichen kürzen
+
       await updateTask(characterRfid, deviceId);
     }
   } catch (err) {
